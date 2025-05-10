@@ -31,10 +31,10 @@ const queryAnalyzer = new PromptTemplate({
     if in the main query, the user hasnot provided location or date, then you need to use the queryHistory to get the location and date.
     Given the following query, extract the following information:
     1. Location (city name) [if not specified, then analyze the queryHistory to get the location, if not found then use Dhaka]
-    2. Time reference (if exact date is mentioned, then use it as time reference(yyyy-mm-dd), if not mentioned then use null)
+    2. Time reference (if exact date is mentioned, then use it as time reference(strictly follow the format yyyy-dd-mm:hh-mm), if not mentioned use the today/tomorrow/yesterday/week/month to calculate the date, default time is 00:00, but if user asked for morning/evening/night/day, then use the time accordingly]
     3. Weather attribute of interest (temperature, rain, sun, wind, etc.) [if not specified, then use general weather]
     4. Any specific conditions mentioned (heavy rain, light snow, etc.) [if not specified, then use none]
-    5. Type of weather data (current weather, forecast, past) [if not specified, then use current weather]
+    5. Type of weather data (current weather, forecast, past(even if user asked to get this morning in evening)) [if not specified, then use current weather]
     6. Number of days for forecast (0,1,2,3,4,5,6,7,8,9,10)[week=7,month=30,today=0,tomorrow=1, yesterday=-1] (calculate the number of days from today)
 
     Query: {query}
@@ -83,8 +83,12 @@ const responseGenerator = new PromptTemplate({
 const analyzeQuery = async (input) => {
 
     const today = new Date();
-    // console.log("🔍 Today:\n", weekDays[today.getDay()]);
-    const modifiedQuery= input.query + " [note : today is " + weekDays[today.getDay()] + " & date is " + today.toISOString().split('T')[0] + "]";
+    // console.log("🔍 Today:\n", weekDays[today.getDay()]);" + today.toLocaleTimeString() + "
+
+
+    const modifiedQuery= input.query + " [note : today is " + weekDays[today.getDay()] + " & date is " + today.toDateString()  + " time is " + today.toLocaleTimeString() + "]";
+    console.log("🔍 Modified Query:\n", modifiedQuery);
+    
     const analysis = await queryAnalyzer.pipe(model).pipe(outputParser).invoke({ query: modifiedQuery });
 
     // Simulate weather data for now
@@ -98,16 +102,22 @@ const analyzeQuery = async (input) => {
     const date = dateMatch?.[1]?.trim().replace(/\*/g, '').trim() || 'today';
     const type = analysis.match(/Type:\s*(.*)/i)?.[1]?.trim() || 'current weather';
     const numberOfDays = analysis.match(/NumberOfDays:\s*(.*)/i)?.[1]?.trim() || 0;
-    const timereference = analysis.match(/TimeReference:\s*(.*)/i)?.[1]?.trim() || 'today'; const
-    mydate = new Date(timereference);
-    const timestamps = mydate.getTime() / 1000;
+    const timereference = analysis.match(/TimeReference:\s*(.*)/i)?.[1]?.trim() || 'today'; 
+    
+    const [datePart, timePart] = timereference.split(':');
+    const datestr = datePart + 'T' + timePart.split('-')[0]+ ':' + timePart.split('-')[1]+ ':00Z';
+    const mydate = new Date(datestr);
+    console.log("🔍 My Date:\n", timePart);
+    // Ensure we have a valid date
+    const timestamps = Math.floor(mydate.getTime() / 1000);
+    console.log("🔍 Timestamps:\n", new Date(timestamps * 1000));
+    
 
-    console.log("🔍 Date:\n", timestamps); 
+    console.log("🔍 Date:\n", timestamps ); 
 
     // console.log("🔍 Modified Query:\n", modifiedQuery);
     console.log("🔍 Type:\n", type);
     console.log("🔍 Number of Days:\n", numberOfDays);
-    console.log("🔍 Time Reference:\n", timereference);
     var long;
     var lat;
 

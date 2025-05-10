@@ -9,7 +9,9 @@ module.exports = {
   // API Keys
   openWeatherMap: {
     apiKey: process.env.OPENWEATHERMAP_API_KEY,
-    baseUrl: 'https://api.openweathermap.org/data/2.5'
+    baseUrl: 'https://api.openweathermap.org/data/2.5',
+    historyUrl: 'https://api.openweathermap.org/data/3.0/onecall'
+
   },
 
   weatherApi: {

@@ -161,10 +161,21 @@ class WeatherService {
       }
 
       async getPastWeather(location, long, lat, timestamps) {
-        const response = await axios.get(`${config.weatherApi.baseUrl}/history.json?`
-          +`key=${config.weatherApi.apiKey}&q=${location}&dt=${timestamps}`);
-        console.log("🔍 Past Weather Data:\n", response.data);
-        return response.data;
+        try {
+          const response = await axios.get(`${config.openWeatherMap.historyUrl}`, {
+            params: {
+              lat: lat,
+              lon: long,
+              dt: timestamps,
+              appid: config.openWeatherMap.apiKey
+            }
+          });
+          console.log("🔍 Past Weather Data:\n", response.data);
+          return this.parseWeatherData(response.data);
+        } catch (error) {
+          console.error('Error fetching historical weather data: line no 176', error);
+          return null;
+        }
       }
 
 
