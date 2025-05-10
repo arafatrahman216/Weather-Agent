@@ -31,21 +31,21 @@ const queryAnalyzer = new PromptTemplate({
     if in the main query, the user hasnot provided location or date, then you need to use the queryHistory to get the location and date.
     Given the following query, extract the following information:
     1. Location (city name) [if not specified, then analyze the queryHistory to get the location, if not found then use Dhaka]
-    2. Time reference (today, tomorrow, yesterday, specific date) [if not specified, then use today]
+    2. Time reference (if exact date is mentioned, then use it as time reference(yyyy-mm-dd), if not mentioned then use null)
     3. Weather attribute of interest (temperature, rain, sun, wind, etc.) [if not specified, then use general weather]
     4. Any specific conditions mentioned (heavy rain, light snow, etc.) [if not specified, then use none]
-    5. Type of weather data (current weather, forecast) [if not specified, then use current weather]
+    5. Type of weather data (current weather, forecast, past) [if not specified, then use current weather]
     6. Number of days for forecast (0,1,2,3,4,5,6,7,8,9,10)[week=7,month=30,today=0,tomorrow=1, yesterday=-1] (calculate the number of days from today)
 
     Query: {query}
 
     Provide the extracted information in a structured format:
-    Location: [extracted location or 'not specified']
-    TimeReference: [extracted time reference or 'not specified'] Donot write something after date
+    Location: [extracted location or 'not specified'] Donot write something after location
+    TimeReference: [extracted exact date if mentioned or null if not mentioned] Donot write something after date
     WeatherAttribute: [extracted weather attribute or 'general weather']
     Type: "current weather" or "forecast"
     SpecificConditions: [extracted specific conditions or 'none']
-    NumberOfDays: [extracted only **number** of days for forecast or 'not specified']
+    NumberOfDays: [extracted only **number** of days for forecast or exact date if mentioned or 'not specified']
     `,
     inputVariables: ["query"]
 });
@@ -60,7 +60,7 @@ const responseGenerator = new PromptTemplate({
     Note:
     if the query is about forecast, then you need to give the weather data for the next "number of days" days.
     if the query is about current weather, then you need to give the weather data for the current day.
-    if Number of Days >5 then response should be "I'm sorry, I can't provide weather data for more than 5 days."
+    if Number of Days >14 then response should be "I'm sorry, I can't provide weather data for more than 5 days."
     
 
     Query: {query}
@@ -84,7 +84,7 @@ const analyzeQuery = async (input) => {
 
     const today = new Date();
     // console.log("🔍 Today:\n", weekDays[today.getDay()]);
-    const modifiedQuery= input.query + " [note : today is " + weekDays[today.getDay()] + "]";
+    const modifiedQuery= input.query + " [note : today is " + weekDays[today.getDay()] + " & date is " + today.toISOString().split('T')[0] + "]";
     const analysis = await queryAnalyzer.pipe(model).pipe(outputParser).invoke({ query: modifiedQuery });
 
     // Simulate weather data for now
@@ -98,19 +98,50 @@ const analyzeQuery = async (input) => {
     const date = dateMatch?.[1]?.trim().replace(/\*/g, '').trim() || 'today';
     const type = analysis.match(/Type:\s*(.*)/i)?.[1]?.trim() || 'current weather';
     const numberOfDays = analysis.match(/NumberOfDays:\s*(.*)/i)?.[1]?.trim() || 0;
+    const timereference = analysis.match(/TimeReference:\s*(.*)/i)?.[1]?.trim() || 'today'; const
+    mydate = new Date(timereference);
+    const timestamps = mydate.getTime() / 1000;
+
+    console.log("🔍 Date:\n", timestamps); 
 
     // console.log("🔍 Modified Query:\n", modifiedQuery);
     console.log("🔍 Type:\n", type);
     console.log("🔍 Number of Days:\n", numberOfDays);
+    console.log("🔍 Time Reference:\n", timereference);
+    var long;
+    var lat;
+
+    const locationData = await weatherService.getLocation(location);
+    if (locationData) {
+        long = locationData.lon;
+        lat = locationData.lat;
+        console.log("🔍 Long:\n", long);
+        console.log("🔍 Lat:\n", lat);
+    }
+    else {
+        console.log("🔍 LocationData:\n", locationData);
+    }
+
+         
 
     var weatherData = null;
-    weatherService.getForecast2(location, parseInt(numberOfDays)+2);
-    
     if (type.trim().toLowerCase() === "forecast") {
-        weatherData = await weatherService.getForecast(location, numberOfDays);
-        console.log("🔍 Weather Data:\n", weatherData);
+        weatherData = await weatherService.getForecast2(location, parseInt(numberOfDays));
+    }
+    else if (type.trim().toLowerCase() === "past") {
+        weatherData = await weatherService.getPastWeather(location, long, lat, timestamps);
     } else {
         weatherData = await weatherService.getCurrentWeather(location);
+    }
+    // console.log("🔍 Weather Data:\n",test);
+    
+    if (! weatherData) {
+        if (type.trim().toLowerCase() === "forecast") {
+            weatherData = await weatherService.getForecast(location, numberOfDays);
+            // console.log("🔍 Weather Data:\n", weatherData);
+        } else {
+            weatherData = await weatherService.getCurrentWeather(location);
+        }
     }
     
     // console.log("🔍 Weather Data:\n", weatherData);

@@ -104,11 +104,15 @@ class WeatherService {
         try {
             const response = await axios.get(`${config.weatherApi.baseUrl}/forecast.json?`
               +`key=${config.weatherApi.apiKey}&q=${location}&days=${days}&aqi=no&alerts=no`);
+            console.log("🔍 Weather Data:\n", response.data);
+            const b= this.parseWeatherData2(response.data);
+            console.log("🔍 Weather Data:\n", b);
+            return b;
 
-            console.log("🔍 Weather Data:\n", response.data.forecast);
+            // console.log("🔍 Weather Data:\n", response.data.forecast.forecastday[0].hour);
         }
         catch (error) {
-            console.error('Error fetching weather data:');
+            console.error('Error fetching weather data from weatherApi:', error);
             
         }
       }
@@ -117,13 +121,50 @@ class WeatherService {
       parseWeatherData2(weatherData) {
         if (!weatherData) return null;
 
-        return {  
+        if(weatherData.forecast.forecastday) {
+          return weatherData.forecast.forecastday.map(day => ({
+            date: day.date,
+            hourlyForecast: day.hour.map(item => ({
+              time: item.time,
+              temperature: item.temp_c,
+              feelsLike: item.feelslike_c,
+              humidity: item.humidity,
+              description: item.condition.text,
+              windSpeed: item.wind_kph,
+              windDirection: item.wind_dir,
+              windDegree: item.wind_degree,
+              chanceOfRain: item.chance_of_rain
+            }))
+          }));
+        }
+        else {
+          return {
             location: weatherData.location.name,
             country: weatherData.location.country,
             temperature: weatherData.current.temp_c,
             feelsLike: weatherData.current.feelslike_c,
-            humidity: weatherData.current.humidity,
+            humidity: weatherData.current.humidity
+          }
         }
+      }
+
+      async getLocation(location) {
+        const response = await axios.get(`${config.weatherApi.baseUrl}/search.json?`
+          +`key=${config.weatherApi.apiKey}&q=${location}`);
+        console.log("🔍 Location Data:\n", response.data);
+        if (response.data.length > 0) {
+          return response.data[0];
+        }
+        else {
+          return null;
+        }
+      }
+
+      async getPastWeather(location, long, lat, timestamps) {
+        const response = await axios.get(`${config.weatherApi.baseUrl}/history.json?`
+          +`key=${config.weatherApi.apiKey}&q=${location}&dt=${timestamps}`);
+        console.log("🔍 Past Weather Data:\n", response.data);
+        return response.data;
       }
 
 
