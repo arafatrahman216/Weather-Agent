@@ -94,7 +94,7 @@ const analyzeQuery = async (input) => {
     const locationMatch = analysis.match(/Location:\s*(.*)/i);
     const dateMatch = analysis.match(/TimeReference:\s*(.*)/i);
     
-    const location = locationMatch?.[1]?.trim().replace(/\*/g, '').trim() || 'Dhaka';
+    var location = locationMatch?.[1]?.trim().replace(/\*/g, '').trim() || 'Dhaka';
     const date = dateMatch?.[1]?.trim().replace(/\*/g, '').trim() || 'today';
     const type = analysis.match(/Type:\s*(.*)/i)?.[1]?.trim() || 'current weather';
     const numberOfDays = analysis.match(/NumberOfDays:\s*(.*)/i)?.[1]?.trim() || 0;
@@ -115,6 +115,7 @@ const analyzeQuery = async (input) => {
     if (locationData) {
         long = locationData.lon;
         lat = locationData.lat;
+        location= locationData.name
         console.log("🔍 Long:\n", long);
         console.log("🔍 Lat:\n", lat);
     }

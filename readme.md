@@ -116,10 +116,21 @@ weather-ai-agent/
 │   ├── package.json
 │   └── README.md
 ├── frontend/
+│   ├── public/
 │   ├── src/
 │   │   ├── components/
-│   │   ├── services/
-│   │   └── utils/
+│   │   |   ├── AudioPlayer.jsx
+│   │   |   ├── QueryInput.jsx
+│   │   |   ├── ResponseDisplay.jsx
+│   │   |   ├── Sidebar.jsx
+│   │   ├── hooks/
+│   │   |   ├── useQueryHistory.js
+│   │   └── pages/WeatherAgent.jsx
+│   │   └── App.jsx
+│   │   └── App.css 
+│   │   └── index.css
+│   │   └── main.jsx
+│   │   └── theme.js
 │   └── package.json
 └── README.md
 ```

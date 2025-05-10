@@ -148,7 +148,7 @@ class WeatherService {
         }
       }
 
-      async getLocation(location) {
+      async   getLocation(location) {
         const response = await axios.get(`${config.weatherApi.baseUrl}/search.json?`
           +`key=${config.weatherApi.apiKey}&q=${location}`);
         console.log("🔍 Location Data:\n", response.data);
