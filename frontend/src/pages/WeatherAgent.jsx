@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { 
     Box, 
@@ -10,19 +10,25 @@ import {
     Alert,
     Snackbar,
     Paper,
-    IconButton  
+    IconButton,
+    Container,
+    Avatar,
+    TextField,
+    InputAdornment
 } from '@mui/material';
 import { 
     Mic as MicIcon, 
     Stop as StopIcon, 
     CloudUpload as CloudUploadIcon,
-    Menu as MenuIcon
+    Menu as MenuIcon,
+    Send as SendIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import QueryInput from '../components/QueryInput';
 import AudioPlayer from '../components/AudioPlayer';
 import Sidebar from '../components/Sidebar';
 import ResponseDisplay from '../components/ResponseDisplay';
+
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
@@ -69,8 +75,21 @@ const WeatherAgent = () => {
     const [mediaRecorder, setMediaRecorder] = useState(null);
     const [audioChunks, setAudioChunks] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [response, setResponse] = useState("hahaha");
+    const [messages, setMessages] = useState([
+        { type: 'bot', content: 'Hello! I\'m your weather assistant. How can I help you today?' }
+    ]);
+    const [inputMessage, setInputMessage] = useState('');
     const [error, setError] = useState(null);
+    const messagesEndRef = useRef(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
 
     const onDrop = useCallback(async (acceptedFiles) => {
         try {
@@ -149,9 +168,9 @@ const WeatherAgent = () => {
             const response = await axios.post('http://localhost:5000/api/query/voice', {
                 audioData
             });
-            console.log("🔍 Response:\n", response.data);
-            
-            setResponse(response.data);
+            console.log("🔍 Response:\n", response.data.text);
+            setMessages(prev => [...prev, { type: 'user', content: response.data.text }]);
+            setMessages(prev => [...prev, { type: 'bot', content: response.data.result }]);
         } catch (error) {
             console.error('Error processing voice query:', error);
             setError(error.response?.data?.error || 'Failed to process voice query');
@@ -160,24 +179,31 @@ const WeatherAgent = () => {
         }
     };
 
-    const handleCloseError = () => {
-        setError(null);
-    };
+    const handleSendMessage = async () => {
+        if (!inputMessage.trim()) return;
 
-    const handleQuery = async (query) => {
+        const userMessage = inputMessage;
+        setInputMessage('');
+        setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
+
         try {
             setIsLoading(true);
-            setError(null);
             const response = await axios.post('http://localhost:5000/api/query/text', {
-                query
+                query: userMessage
             });
-            console.log(response.data);
-            setResponse(response.data);
+            setMessages(prev => [...prev, { type: 'bot', content: response.data }]);
         } catch (error) {
             console.error('Error processing text query:', error);
             setError(error.response?.data?.error || 'Failed to process text query');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
         }
     };
 
@@ -190,131 +216,131 @@ const WeatherAgent = () => {
     };
 
     const audioUrl = '/output.mp3';
-    const [sidebarOpen, setSidebarOpen] = useState(true);
-    const toggleSidebar = () => {
-        setSidebarOpen(!sidebarOpen);
+    const [history, setHistory] = useState([]);
+    const getHistory = async () => {
+        const response = await axios.get('http://localhost:5000/api/query/history');
+        console.log("🔍 History:\n", response.data);
+        setHistory(response.data);
     };
-    const history1 = [
-        { query: 'What is the weather in Tokyo?' },
-        { query: 'What is the weather in New York?' },
-        { query: 'What is the weather in London?' },
-        { query: 'What is the weather in Paris?' },
-        { query: 'What is the weather in Tokyo?' },
-    ];
-    const [history, setHistory] = useState(history1);
+    useEffect(() => {
+        getHistory();
+    }, []);
     const addToHistory = (query) => {
         setHistory([...history, { query }]);
     };
 
-
     return (
         <ErrorBoundary>
-            <IconButton onClick={toggleSidebar} sx={{ position: 'fixed', left: 0, top: 10 }}>
-                <MenuIcon />
-            </IconButton>
-            <Box sx={{ maxWidth: 600, mx: 'auto', p: 3 }}>
-                <Card>
-                    <CardContent>
-                        <Typography variant="h5" component="h2" gutterBottom>
-                            Weather Voice Assistant
-                        </Typography>
-                        <QueryInput onSubmit={handleQuery} />
-                        
-                        <AudioPlayer
-                            style={{ marginTop: '10px' }}
-                            audioUrl={audioUrl}
-                            onStop={stopAudio}
-                        />
-                        
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 , mt: 3}}>
-                            {/* Voice Recording Section */}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                                <Button
-                                    variant="contained"
-                                    color={isRecording ? "error" : "primary"}
-                                    onClick={isRecording ? stopRecording : startRecording}
-                                    startIcon={isRecording ? <StopIcon /> : <MicIcon />}
-                                    size="large"
-                                >
-                                    {isRecording ? "Stop Recording" : "Start Recording"}
-                                </Button>
-                                
-                                {isRecording && (
-                                    <Typography variant="body2" color="text.secondary">
-                                        Recording... Click stop when finished
-                                    </Typography>
-                                )}
-                            </Box>
+            <Box sx={{ display: 'flex', height: '100vh' }}>
+                <Sidebar open={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} history={history} />
+                
+                <Box sx={{ 
+                    flexGrow: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    height: '100%',
+                    bgcolor: '#f5f5f5'
+                }}>
+                    {/* Chat Header */}
+                    <Paper elevation={1} sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <IconButton onClick={() => setSidebarOpen(!sidebarOpen)}>
+                            <MenuIcon />
+                        </IconButton>
+                        <Typography variant="h6">Weather Assistant</Typography>
+                    </Paper>
 
-                            {/* File Upload Section */}
-                            <Paper
-                                {...getRootProps()}
+                    {/* Messages Area */}
+                    <Box sx={{ 
+                        flexGrow: 1, 
+                        overflow: 'auto', 
+                        p: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2
+                    }}>
+                        {messages.map((message, index) => (
+                            <Box
+                                key={index}
                                 sx={{
-                                    p: 3,
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    bgcolor: isDragActive ? 'action.hover' : 'background.paper',
-                                    border: '2px dashed',
-                                    borderColor: isDragActive ? 'primary.main' : 'divider',
-                                    '&:hover': {
-                                        borderColor: 'primary.main',
-                                        bgcolor: 'action.hover'
-                                    }
+                                    display: 'flex',
+                                    justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start',
+                                    gap: 1
                                 }}
                             >
-                                <input {...getInputProps()} />
-                                <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-                                <Typography>
-                                    {isDragActive
-                                        ? "Drop the audio file here"
-                                        : "Drag and drop an audio file here, or click to select"}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                    Supported formats: MP3, WAV, OGG, M4A
-                                </Typography>
-                            </Paper>
-
-                            {/* Loading State */}
-                            {isLoading && (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                                    <CircularProgress />
-                                    <Typography color="text.secondary">
-                                        Processing your voice query...
-                                    </Typography>
-                                </Box>
-                            )}
-
-                            {/* Response Display */}
-                            {response && !isLoading && (
-                                <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
-                                    <Typography variant="h6" gutterBottom>
-                                        Response:
-                                    </Typography>
-                                    <Typography>
-                                        {response}
-                                    </Typography>
+                                {message.type === 'bot' && (
+                                    <Avatar sx={{ bgcolor: 'primary.main' }}>W</Avatar>
+                                )}
+                                <Paper
+                                    elevation={1}
+                                    sx={{
+                                        p: 2,
+                                        maxWidth: '70%',
+                                        bgcolor: message.type === 'user' ? 'primary.main' : 'white',
+                                        color: message.type === 'user' ? 'white' : 'text.primary',
+                                        borderRadius: 2
+                                    }}
+                                >
+                                    <Typography>{message.content}</Typography>
                                 </Paper>
-                            )}
+                                {message.type === 'user' && (
+                                    <Avatar sx={{ bgcolor: 'secondary.main' }}>U</Avatar>
+                                )}
+                            </Box>
+                        ))}
+                        {isLoading && (
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
+                                <Avatar sx={{ bgcolor: 'primary.main' }}>W</Avatar>
+                                <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+                                    <CircularProgress size={20} />
+                                </Paper>
+                            </Box>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </Box>
+
+                    {/* Input Area */}
+                    <Paper elevation={3} sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <TextField
+                                fullWidth
+                                variant="outlined"
+                                placeholder="Type your message..."
+                                value={inputMessage}
+                                onChange={(e) => setInputMessage(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={handleSendMessage} color="primary">
+                                                <SendIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            <IconButton 
+                                color={isRecording ? "error" : "primary"}
+                                onClick={isRecording ? stopRecording : startRecording}
+                            >
+                                {isRecording ? <StopIcon /> : <MicIcon />}
+                            </IconButton>
                         </Box>
-                    </CardContent>
-                    {/* <ResponseDisplay response={response} /> */}
-                </Card>
-
-                {/* Error Snackbar */}
-                <Snackbar 
-                    open={!!error} 
-                    autoHideDuration={6000} 
-                    onClose={handleCloseError}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                >
-                    <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
-                        {error}
-                    </Alert>
-                </Snackbar>
+                    </Paper>
+                </Box>
             </Box>
-            <Sidebar open={sidebarOpen} toggleSidebar={toggleSidebar} history={history} />
-        </ErrorBoundary>
 
+            {/* Error Snackbar */}
+            <Snackbar 
+                open={!!error} 
+                autoHideDuration={6000} 
+                onClose={() => setError(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+                    {error}
+                </Alert>
+            </Snackbar>
+        </ErrorBoundary>
     );
 };
 

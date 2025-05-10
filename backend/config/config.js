@@ -11,6 +11,11 @@ module.exports = {
     apiKey: process.env.OPENWEATHERMAP_API_KEY,
     baseUrl: 'https://api.openweathermap.org/data/2.5'
   },
+
+  weatherApi: {
+    apiKey: process.env.WEATHER_API_KEY,
+    baseUrl: 'https://api.weatherapi.com/v1'
+  },
   
   // ElevenLabs configuration
   elevenLabs: {

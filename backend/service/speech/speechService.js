@@ -49,12 +49,24 @@ const speechService = {
 
     convertAudioToText: async (audioData) => {
         try {
-            console.log("🔍 Audio data:" , audioData);
-            const response = await groq.audio.transcriptions.create({
-                model: config.groq.model,   
-                file: audioData,
-                language: "en"
-            });
+          // Convert base64 audio data to buffer
+          const audioBuffer = Buffer.from(audioData.split(',')[1], 'base64');
+          
+          // Write buffer to temp file
+          const tempFile = './temp-audio.wav';
+          fs.writeFileSync(tempFile, audioBuffer);
+          
+          const rs = fs.createReadStream(tempFile);
+          console.log("🔍 Processing audio file");
+          
+          const response = await groq.audio.transcriptions.create({
+            model: config.groq.model,
+            file: rs, 
+            language: "en"
+          });
+          
+          // Clean up temp file
+          fs.unlinkSync(tempFile);
             return response.text;
         }
         catch (error) {

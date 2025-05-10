@@ -20,7 +20,7 @@ class WeatherService {
             return this.parseWeatherData(response.data);
         } catch (error) {
             console.error('Error fetching weather data:', error);
-            throw error;
+            return null;
         }
     }
 
@@ -37,7 +37,7 @@ class WeatherService {
           return this.parseWeatherData(response.data);
         } catch (error) {
           console.error('Error fetching forecast:', error.message);
-          throw new Error(`Failed to fetch forecast: ${error.message}`);
+          return null;
         }
       }
 
@@ -81,9 +81,55 @@ class WeatherService {
             }))
           };
         }
-        
         return weatherData;
       }
+
+    async getCurrentWeather2(city) {
+        try {
+
+            const response = await axios.get(`${config.weatherApi.baseUrl}/current.json?`
+              +`key=${config.weatherApi.apiKey}&q=${city}&aqi=no`);
+    
+            console.log("🔍 Weather Data:\n", response.data);
+            
+         } 
+         catch (error) {
+            console.error('Error fetching weather data:', error);
+            return null;
+         }
+
+      }
+
+      async getForecast2(location, days = 5) {
+        try {
+            const response = await axios.get(`${config.weatherApi.baseUrl}/forecast.json?`
+              +`key=${config.weatherApi.apiKey}&q=${location}&days=${days}&aqi=no&alerts=no`);
+
+            console.log("🔍 Weather Data:\n", response.data.forecast);
+        }
+        catch (error) {
+            console.error('Error fetching weather data:');
+            
+        }
+      }
+
+
+      parseWeatherData2(weatherData) {
+        if (!weatherData) return null;
+
+        return {  
+            location: weatherData.location.name,
+            country: weatherData.location.country,
+            temperature: weatherData.current.temp_c,
+            feelsLike: weatherData.current.feelslike_c,
+            humidity: weatherData.current.humidity,
+        }
+      }
+
+
+
+
+
 }
 
 

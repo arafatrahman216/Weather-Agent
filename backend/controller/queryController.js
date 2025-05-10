@@ -75,7 +75,9 @@ const textQueryController = {
         try {
             const history = await QueryHistory.findAll({
                 order: [['createdAt', 'DESC']],
-                limit: 50 // Get last 50 queries
+                limit: 50 ,// Get last 50 queries,
+                attributes: ['query', 'response', 'createdAt'],
+                raw: true
             });
             res.json(history);
         } catch (error) {
@@ -100,10 +102,13 @@ const textQueryController = {
             const text = await speechService.convertAudioToText(audioData);
             // const text = "what is the weather in pakistan";
             console.log("🔍 Text:\n", text);
-            const result = await weatherAgent.execute("text");
+            const result = await weatherAgent.execute(text);
             console.log("🔍 Result:\n", result);
             
-            res.json(result);
+            res.json({
+                result: result,
+                text: text
+            });
         }
         catch (error) {
             console.error('Error processing voice query:', error);

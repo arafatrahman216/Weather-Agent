@@ -20,7 +20,12 @@ const outputParser = new StringOutputParser();
 // Prompt 1: Query Analyzer
 const queryAnalyzer = new PromptTemplate({
     template: `
-    You are a weather assistant that helps analyze weather-related queries.
+    You are a weather assistant that helps analyze weather-related queries. Analyze user sentiment and provide appropriate response.
+    If user greets you, then you need to greet them back. if user asks about time, then you need to tell the current time.
+    if user asks about date, then you need to tell the current date. If user praises you, then you need to say "Thank you"
+    donot engage in verbal argument with user.
+    if user asks about something you dont know, then you need to say "I'm sorry, I don't know that information."
+
     for forecast, you need to extract number of days for forecast in NumberOfDays
     if queryHistory is provided, then you need to use it to analyze the query. 
     if in the main query, the user hasnot provided location or date, then you need to use the queryHistory to get the location and date.
@@ -30,7 +35,7 @@ const queryAnalyzer = new PromptTemplate({
     3. Weather attribute of interest (temperature, rain, sun, wind, etc.) [if not specified, then use general weather]
     4. Any specific conditions mentioned (heavy rain, light snow, etc.) [if not specified, then use none]
     5. Type of weather data (current weather, forecast) [if not specified, then use current weather]
-    6. Number of days for forecast (0,1,2,3,4,5,6,7,8,9,10)[week=7,month=30,today=0,tomorrow=1] (calculate the number of days from today)
+    6. Number of days for forecast (0,1,2,3,4,5,6,7,8,9,10)[week=7,month=30,today=0,tomorrow=1, yesterday=-1] (calculate the number of days from today)
 
     Query: {query}
 
@@ -95,12 +100,15 @@ const analyzeQuery = async (input) => {
     const numberOfDays = analysis.match(/NumberOfDays:\s*(.*)/i)?.[1]?.trim() || 0;
 
     // console.log("🔍 Modified Query:\n", modifiedQuery);
-    // console.log("🔍 Type:\n", type);
+    console.log("🔍 Type:\n", type);
+    console.log("🔍 Number of Days:\n", numberOfDays);
 
     var weatherData = null;
+    weatherService.getForecast2(location, parseInt(numberOfDays)+2);
     
     if (type.trim().toLowerCase() === "forecast") {
         weatherData = await weatherService.getForecast(location, numberOfDays);
+        console.log("🔍 Weather Data:\n", weatherData);
     } else {
         weatherData = await weatherService.getCurrentWeather(location);
     }
